@@ -79,3 +79,14 @@ class TestProxyManager(object):
             with pytest.raises(MaxRetryError) as ei:
                 p.urlopen("HEAD", url="http://localhost/", retries=retry)
             assert isinstance(ei.value.reason.original_error, NewConnectionError)
+
+    @pytest.mark.parametrize(
+        ["retries", "raise_on_redirect"], [(0, True), (1, True), (False, False)]
+    )
+    def test_proxy_manager_retries_normalized(self, retries, raise_on_redirect):
+        """Assert the proxy manager honors ``retries`` for redirects too"""
+        with ProxyManager("http://proxy:8080", retries=retries) as p:
+            normalized = p.connection_pool_kw["retries"]
+            assert isinstance(normalized, Retry)
+            assert normalized.redirect == 0
+            assert normalized.raise_on_redirect is raise_on_redirect

@@ -634,6 +634,49 @@ class TestResponse(object):
         assert total == expected_length
         assert count == expected_length // amt
 
+    def test_drain_conn_does_not_decode_content(self):
+        """
+        Draining a connection, e.g. a redirect response body that the caller
+        never reads, must not decompress the body. A malicious server could
+        otherwise amplify a few kilobytes on the wire into a huge allocation
+        without any read limit being applied.
+        """
+        compressed_data = gzip.compress(b"\0" * (8 * 2 ** 20))
+        fp = BytesIO(compressed_data)
+        r = HTTPResponse(
+            fp, headers={"content-encoding": "gzip"}, preload_content=False
+        )
+
+        with mock.patch("urllib3.response.GzipDecoder.decompress") as decompress:
+            r.drain_conn()
+
+        # This is the vulnerability: before the fix the whole 8 MiB were
+        # decompressed just for the result to be thrown away.
+        decompress.assert_not_called()
+        assert r._has_decoded_content is False
+        # The body is still read off the wire so the connection can be reused.
+        assert fp.tell() == len(compressed_data)
+
+    def test_drain_conn_decodes_content_when_decoding_started(self):
+        """
+        Draining keeps decoding once decoded content has already been read,
+        so the decoder state stays consistent with what was returned.
+        """
+        compressed_data = gzip.compress(b"foo" * 1000)
+        r = HTTPResponse(
+            BytesIO(compressed_data),
+            headers={"content-encoding": "gzip"},
+            preload_content=False,
+        )
+
+        assert r.read(1) == b"f"
+        assert r._has_decoded_content is True
+
+        with mock.patch.object(r, "read", wraps=r.read) as read:
+            r.drain_conn()
+
+        read.assert_called_once_with(decode_content=True)
+
     def test_multi_decoding_deflate_deflate(self):
         data = zlib.compress(zlib.compress(b"foo"))
 

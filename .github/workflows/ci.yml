@@ -10,6 +10,7 @@ defaults:
 
 jobs:
   package:
+    if: false  # disabled on the seal fork: cross-platform testing runs in seal-xplat.yml
     runs-on: ubuntu-latest
 
     steps:
@@ -26,6 +27,7 @@ jobs:
           rstcheck README.rst CHANGES.rst
           python3.7 -m twine check dist/*
   test:
+    if: false  # disabled on the seal fork: cross-platform testing runs in seal-xplat.yml
     strategy:
       fail-fast: false
       matrix:
@@ -79,7 +81,6 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     name: ${{ fromJson('{"macos-12":"macOS","windows-latest":"Windows","ubuntu-20.04":"Ubuntu 20.04","ubuntu-latest":"Ubuntu"}')[matrix.os] }} ${{ matrix.python-version }} ${{ matrix.nox-session}}
-    continue-on-error: ${{ matrix.experimental }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -131,6 +132,7 @@ jobs:
 
   # A slow test that needs to be run separatelly to avoid timeouts.
   test_requesting_large_resources_via_ssl:
+    if: false  # disabled on the seal fork: cross-platform testing runs in seal-xplat.yml
     strategy:
       fail-fast: false
       matrix:
@@ -164,7 +166,7 @@ jobs:
           if-no-files-found: error
 
   coverage:
-    if: always()
+    if: false  # disabled on the seal fork: cross-platform testing runs in seal-xplat.yml
     runs-on: "ubuntu-latest"
     needs: [test, test_requesting_large_resources_via_ssl]
     steps:

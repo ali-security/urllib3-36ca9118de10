@@ -6,6 +6,7 @@ permissions: "read-all"
 
 jobs:
   lint:
+    if: false  # disabled on the seal fork: cross-platform testing runs in seal-xplat.yml
     runs-on: ubuntu-20.04
 
     steps:

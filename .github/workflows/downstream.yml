@@ -6,6 +6,7 @@ permissions: "read-all"
 
 jobs:
   downstream:
+    if: false  # disabled on the seal fork: cross-platform testing runs in seal-xplat.yml
     strategy:
       fail-fast: false
       matrix:

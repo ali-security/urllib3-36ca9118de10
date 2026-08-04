@@ -27,12 +27,6 @@ jobs:
         # Quoted so 3.10 is not parsed as the float 3.1.
         python-version: ["3.9", "3.10", "3.11", "3.12"]
         os: [ubuntu-22.04, macos-15, windows-latest]
-        exclude:
-          # macos-15 is arm64 (Apple Silicon) and there is no darwin-arm64
-          # CPython 3.9 build in actions/python-versions, so setup-python
-          # cannot provision this leg. 3.9 is kept on ubuntu + windows.
-          - os: macos-15
-            python-version: "3.9"
 
     steps:
       - name: Checkout repository
@@ -42,10 +36,17 @@ jobs:
           # git commit, so a complete git checkout must be available.
           fetch-depth: 0
 
+      # MatteoH2O1999/setup-python, not actions/setup-python: actions/python-versions
+      # has no darwin-arm64 CPython 3.9 build, so actions/setup-python cannot
+      # provision 3.9 on macos-15 (arm64) and that leg would have to be excluded.
+      # This action falls back to building the interpreter from source, keeping the
+      # full python-version x os matrix runnable.
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: MatteoH2O1999/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+          cache-build: true
+          allow-build: allow
 
       - name: Install nox
         run: python -m pip install --upgrade pip setuptools nox

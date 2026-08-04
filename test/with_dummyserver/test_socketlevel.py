@@ -3,6 +3,7 @@
 from dummyserver.server import (
     DEFAULT_CA,
     DEFAULT_CERTS,
+    SocketServerThread,
     encrypt_key_pem,
     get_unreachable_address,
 )
@@ -60,6 +61,21 @@ import trustme
 
 # Retry failed tests
 pytestmark = pytest.mark.flaky
+
+
+def _localhost_fqdn_has_ipv6():
+    """Whether 'localhost.' resolves to an IPv6 address in this environment.
+
+    A trailing dot bypasses /etc/hosts, so glibc answers from DNS, which in some
+    containers returns only an A record. The dummyserver binds AF_INET6 whenever
+    IPv6 is available, so an IPv4-only answer makes the two ends disagree.
+    """
+    try:
+        return any(
+            ai[0] == socket.AF_INET6 for ai in socket.getaddrinfo("localhost.", 80)
+        )
+    except socket.gaierror:
+        return False
 
 
 class TestCookies(SocketDummyServerTestCase):
@@ -1699,11 +1715,11 @@ class TestHeaders(SocketDummyServerTestCase):
             request_headers = filter_non_x_headers(self.parsed_headers)
             assert expected_request_headers == request_headers
 
-    @pytest.mark.skip(
-        reason="Container environment limitation: the build container's resolver / "
-        "network stack refuses connections to the trailing-dot FQDN form "
-        "('localhost.'), so the connection is refused with [Errno 111] before any "
-        "urllib3 Host-header behaviour is exercised."
+    @pytest.mark.skipif(
+        SocketServerThread.USE_IPV6 and not _localhost_fqdn_has_ipv6(),
+        reason="Environment resolves 'localhost.' to IPv4 only while the "
+        "dummyserver binds AF_INET6, so the client reaches 127.0.0.1 where "
+        "nothing listens. Not a urllib3 behaviour difference.",
     )
     @resolvesLocalhostFQDN
     def test_request_host_header_ignores_fqdn_dot(self):
